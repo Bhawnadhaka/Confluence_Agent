@@ -54,6 +54,24 @@ class DocxSections:
         doc.add_heading('Figma/Wireframe Link:', 2)
         figma_link = clickup_data.get("figma_link", "ADD LINK TO ARTICLE DESCRIBING RELEVANT UI")
         doc.add_paragraph(figma_link)
+    
+
+    def _create_fallback_story(self, title: str, description: str, business_case: str) -> str:
+        """Create a fallback user story when OpenAI fails"""
+        # Extract role from context if possible
+        role = "user"
+        if "admin" in title.lower() or "admin" in description.lower():
+            role = "admin"
+        elif "tenant" in title.lower() or "tenant" in description.lower():
+            role = "tenant"
+        
+        # Extract action from title or description
+        action = title if title else "use this feature"
+        
+        # Extract benefit from business case
+        benefit = business_case if business_case else "improve system functionality"
+        
+        return f"As a {role}\nI want to {action}\nSo that {benefit}"
 
     def _generate_concise_user_story(self, clickup_data: Dict) -> str:
             """Generate a human-readable, concise user story using OpenAI"""
@@ -107,22 +125,7 @@ class DocxSections:
                 print(f"Error generating user story with OpenAI: {e}")
                 return self._create_fallback_story(title, description, business_case)
     
-    def _create_fallback_story(self, title: str, description: str, business_case: str) -> str:
-        """Create a fallback user story when OpenAI fails"""
-        # Extract role from context if possible
-        role = "user"
-        if "admin" in title.lower() or "admin" in description.lower():
-            role = "admin"
-        elif "tenant" in title.lower() or "tenant" in description.lower():
-            role = "tenant"
-        
-        # Extract action from title or description
-        action = title if title else "use this feature"
-        
-        # Extract benefit from business case
-        benefit = business_case if business_case else "improve system functionality"
-        
-        return f"As a {role}\nI want to {action}\nSo that {benefit}"
+   
             
     # ---------------- Acceptance Criteria + Business Rules ----------------
     def add_acceptance_criteria_table(self, doc: Document, figma_data: Dict, clickup_data: Dict):
