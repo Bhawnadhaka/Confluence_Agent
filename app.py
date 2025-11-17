@@ -1,14 +1,8 @@
 # app.py
-import os 
 import streamlit as st
 import time
 from pathlib import Path
-from dotenv import load_dotenv  # 👈 add this
-
-# ---- Load environment ----
-load_dotenv()
-CLICKUP_TOKEN = os.getenv("CLICKUP_API_TOKEN")
-FIGMA_TOKEN = os.getenv("FIGMA_TOKEN")
+from configg import get_secret
 
 # ---- Import your project modules ----
 from clickup_extractor import ClickUpTaskExtractor
@@ -20,9 +14,18 @@ from story_generator.run_story_generator import run_story_generation
 # ---- Streamlit Page Config ----
 st.set_page_config(
     page_title="Confluence Story Generator",
-    page_icon="",
+    page_icon="📝",
     layout="centered",
 )
+
+# ---- Load tokens (works for both local and cloud) ----
+try:
+    CLICKUP_TOKEN = get_secret("CLICKUP_API_TOKEN")
+    FIGMA_TOKEN = get_secret("FIGMA_TOKEN")
+except ValueError as e:
+    st.error(f" Configuration Error: {str(e)}")
+    st.info("**Local Development:** Add credentials to `.env` file\n\n**Streamlit Cloud:** Configure in Settings → Secrets")
+    st.stop()
 
 # ---- Custom CSS for beauty ----
 st.markdown("""
@@ -54,7 +57,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ---- Header ----
-st.markdown('<div class="title-text"> Confluence Story Generator</div>', unsafe_allow_html=True)
+st.markdown('<div class="title-text">📝 Confluence Story Generator</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-text">Fetch. Process. Summarize. Generate Word Story – Automatically.</div>', unsafe_allow_html=True)
 
 # ---- Input Fields ----
@@ -79,38 +82,40 @@ if generate_btn:
     if not (clickup_task_id and figma_file_key and figma_node_id):
         st.error(" Please fill in all three fields before proceeding.")
     else:
-        with st.spinner(" Fetching data from ClickUp and Figma... Please wait."):
-            # Step 1: Fetch data from ClickUp and Figma
-            clickup_extractor = ClickUpTaskExtractor(CLICKUP_TOKEN)
-            clickup_data = clickup_extractor.fetch_task_enhanced(clickup_task_id)
+        try:
+            with st.spinner(" Fetching data from ClickUp and Figma... Please wait."):
+                # Step 1: Fetch data from ClickUp and Figma
+                clickup_extractor = ClickUpTaskExtractor(CLICKUP_TOKEN)
+                clickup_data = clickup_extractor.fetch_task_enhanced(clickup_task_id)
 
-            figma_extractor = FigmaPrototypeAnalyzer(FIGMA_TOKEN, figma_file_key, figma_node_id)
-            figma_data = figma_extractor.run_extraction()  
-            time.sleep(1)
+                figma_extractor = FigmaPrototypeAnalyzer(FIGMA_TOKEN, figma_file_key, figma_node_id)
+                figma_data = figma_extractor.run_extraction()  
+                time.sleep(1)
 
-        with st.spinner(" Preprocessing data..."):
-            preprocessor = Preprocessor(clickup_data, figma_data, save_clickup=False)
-            processed_data = preprocessor.run_all()
-            preprocessed_clickup = processed_data["clickup_processed"]
-            preprocessed_figma = processed_data["figma_processed"]
-            
-            time.sleep(1)
+            with st.spinner("⚙️ Preprocessing data..."):
+                preprocessor = Preprocessor(clickup_data, figma_data, save_clickup=False)
+                processed_data = preprocessor.run_all()
+                preprocessed_clickup = processed_data["clickup_processed"]
+                preprocessed_figma = processed_data["figma_processed"]
+                time.sleep(1)
 
+            with st.spinner("🔍 Summarizing Figma Screens..."):
+                summarized_figma_data = run_summarizer(preprocessed_figma)
+                time.sleep(1)
 
-        with st.spinner(" Summarizing Figma Screens..."):
-            summarized_figma_data = run_summarizer(preprocessed_figma)
-            time.sleep(1)
+            with st.spinner("📄 Generating Confluence Story Document..."):
+                output_file = run_story_generation(preprocessed_clickup, summarized_figma_data)
+                time.sleep(1)
 
-        with st.spinner(" Generating Confluence Story Document..."):
-            output_file = run_story_generation(preprocessed_clickup, summarized_figma_data)
-            time.sleep(1)
+            st.success("✅ Story generated successfully!")
+            st.download_button(
+                label="📥 Download Generated DOCX",
+                data=open(output_file, "rb").read(),
+                file_name=Path(output_file).name,
+                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        except Exception as e:
+            st.error(f" An error occurred: {str(e)}")
+            st.exception(e)  # Shows full traceback in development
 
-        st.success(" Story generated successfully!")
-        st.download_button(
-            label="📥 Download Generated DOCX",
-            data=open(output_file, "rb").read(),
-            file_name=Path(output_file).name,
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        )
-
-st.markdown('<div class="footer">Built with ❤️ using Streamlit and GPT-5</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Built with ❤️ using Streamlit and Azure OpenAI</div>', unsafe_allow_html=True)

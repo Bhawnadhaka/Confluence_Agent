@@ -1,27 +1,22 @@
 # modules/story_generator/run_story_generator.py
-
-import os
 import logging
-from dotenv import load_dotenv
+from configg import get_secret
 
 from .config import StoryConfig
 from .confluence_agent import ConfluenceAgent
 from .generator_core import ConfluenceStoryGenerator
-
-from summarizer.run_summarizer import run_summarizer
-
 
 log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
 
 def run_story_generation(clickup_processed, summarized_figma, base_path=None):
-    load_dotenv()
-
+    """Generate story using Azure OpenAI (works for local and cloud)"""
+    
     config = StoryConfig(
-        azure_openai_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        deployment_name=os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        azure_openai_key=get_secret("AZURE_OPENAI_API_KEY"),
+        azure_openai_endpoint=get_secret("AZURE_OPENAI_ENDPOINT"),
+        deployment_name=get_secret("AZURE_OPENAI_MODEL", "gpt-4o")
     )
 
     story_generator = ConfluenceStoryGenerator(config)

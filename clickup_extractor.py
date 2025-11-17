@@ -4,13 +4,17 @@ import json
 import requests
 from datetime import datetime
 from dotenv import load_dotenv
+import streamlit as st
 
 class ClickUpTaskExtractor:
 
     BASE_URL = "https://api.clickup.com/api/v2"
 
     def __init__(self, clickup_token: str):
-        self.clickup_token = clickup_token
+        self.clickup_token = clickup_token or st.secrets.get("CLICKUP_API_TOKEN") or os.getenv("CLICKUP_API_TOKEN")
+        if not self.clickup_token:
+            raise ValueError("ClickUp API token not found. Please configure CLICKUP_API_TOKEN in secrets.")
+    
         self.headers = {
             "Authorization": self.clickup_token,
             "Content-Type": "application/json",

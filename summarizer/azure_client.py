@@ -1,27 +1,33 @@
-
+# summarizer/azure_client.py
 import time
 import logging
 from typing import Optional
 from openai import AzureOpenAI
+from configg import get_secret
 
 log = logging.getLogger(__name__)
 
 
 class AzureVisionClient:
     
-    def __init__(self, model_name: str, api_key: str, azure_endpoint: str, api_version: str):
-        if not (api_key and azure_endpoint and model_name):
+    def __init__(self, model_name: str = None, api_key: str = None, azure_endpoint: str = None, api_version: str = None):
+        # Try parameters first, then fall back to config (works for local and cloud)
+        self.api_key = api_key or get_secret("AZURE_OPENAI_API_KEY")
+        self.azure_endpoint = azure_endpoint or get_secret("AZURE_OPENAI_ENDPOINT")
+        self.api_version = api_version or get_secret("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+        self.model_name = model_name or get_secret("AZURE_OPENAI_MODEL_NAME")
+        
+        if not (self.api_key and self.azure_endpoint and self.model_name):
             raise ValueError("Azure credentials and model must be provided")
+        
         self.client = AzureOpenAI(
-            api_key=api_key,
-            azure_endpoint=azure_endpoint,
-            api_version=api_version
+            api_key=self.api_key,
+            azure_endpoint=self.azure_endpoint,
+            api_version=self.api_version
         )
-        self.model_name = model_name
         self.log = logging.getLogger(__name__)
 
     def summarize(self, url: str, system_prompt: str, user_prompt: str, max_retries: int = 3, timeout: int = 300) -> Optional[str]:
-      
         if not url:
             return None
 
@@ -46,7 +52,6 @@ class AzureVisionClient:
                 # best-effort extraction
                 choice = getattr(response, "choices", None)
                 if choice:
-                    # response.choices[0].message.content
                     try:
                         return response.choices[0].message.content.strip()
                     except Exception:

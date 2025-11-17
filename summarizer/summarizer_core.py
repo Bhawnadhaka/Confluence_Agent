@@ -1,7 +1,9 @@
+# summarizer/summarizer_core.py
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
+from configg import get_secret
 from .azure_client import AzureVisionClient
 from .interaction_manager import InteractionManager
 
@@ -12,14 +14,13 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 class SummarizerCore:
 
     def __init__(self, figma_data: Dict[str, Any]):
-        import os
-
         self.data = figma_data or {}
 
-        api_key = os.getenv("AZURE_OPENAI_API_KEY")
-        endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-        api_version = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
-        model_name = os.getenv("AZURE_OPENAI_MODEL", "gpt-4o")
+        # Get Azure credentials (works for both local and cloud)
+        api_key = get_secret("AZURE_OPENAI_API_KEY")
+        endpoint = get_secret("AZURE_OPENAI_ENDPOINT")
+        api_version = get_secret("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
+        model_name = get_secret("AZURE_OPENAI_MODEL_NAME", "gpt-4o")
 
         if not api_key or not endpoint:
             raise ValueError("Azure credentials missing.")
@@ -101,4 +102,3 @@ class SummarizerCore:
         }
 
         return final_output
-
